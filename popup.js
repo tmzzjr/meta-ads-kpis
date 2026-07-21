@@ -1,7 +1,7 @@
 // Popup logic: login, account selection, date range and KPI rendering.
 
 import {
-  STORAGE_KEYS, getLocal, setLocal, removeLocal, getPreferences
+  STORAGE_KEYS, getLocal, setLocal, removeLocal, getPreferences, setPreferences
 } from './lib/storage.js';
 import {
   listAdAccounts, validateToken, getAccountInsights, combineInsights,
@@ -595,6 +595,8 @@ function renderKpis() {
 
     const card = document.createElement('div');
     card.className = 'kpi-card';
+    card.draggable = true;
+    card.dataset.key = key;
     card.innerHTML = `
       <span class="label">${escapeHtml(def.label)}</span>
       <span class="value">${formatValue(value, def.format, currency)}</span>
@@ -608,7 +610,68 @@ function renderKpis() {
     grid.appendChild(card);
   }
 
+  enableKpiDrag(grid);
   renderBookingHint();
+}
+
+// Drag a KPI card to reorder the grid. The new order is persisted, so it also
+// shows up in Settings and survives the next open.
+function enableKpiDrag(grid) {
+  if (grid.dataset.dragBound) return;   // the grid element is reused across renders
+  grid.dataset.dragBound = '1';
+
+  let dragging = null;
+
+  grid.addEventListener('dragstart', (e) => {
+    const card = e.target.closest('.kpi-card');
+    if (!card) return;
+    dragging = card;
+    card.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', card.dataset.key);
+  });
+
+  grid.addEventListener('dragend', () => {
+    dragging?.classList.remove('dragging');
+    grid.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+    dragging = null;
+  });
+
+  grid.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const target = e.target.closest('.kpi-card');
+    if (!target || target === dragging) return;
+    grid.querySelectorAll('.drop-target').forEach(el => el.classList.remove('drop-target'));
+    target.classList.add('drop-target');
+  });
+
+  grid.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const target = e.target.closest('.kpi-card');
+    if (!target || !dragging || target === dragging) return;
+
+    // Insert before or after depending on which half was dropped on
+    const rect = target.getBoundingClientRect();
+    const after = (e.clientX - rect.left) > rect.width / 2;
+    grid.insertBefore(dragging, after ? target.nextSibling : target);
+    target.classList.remove('drop-target');
+
+    await persistKpiOrder(grid);
+  });
+}
+
+// Visible cards carry only the enabled KPIs, so fold the new sequence back
+// into the full order without disturbing the hidden ones
+async function persistKpiOrder(grid) {
+  const visible = [...grid.querySelectorAll('.kpi-card')].map(c => c.dataset.key);
+  const next = visible[Symbol.iterator]();
+
+  const merged = state.preferences.kpiOrder.map(key =>
+    state.preferences.kpiEnabled[key] ? (next.next().value ?? key) : key
+  );
+
+  state.preferences = { ...state.preferences, kpiOrder: merged };
+  await setPreferences(state.preferences);
 }
 
 // Spend with zero bookings almost always means the configured event name does

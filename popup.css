@@ -395,6 +395,15 @@ h2.section-title {
   transition: border-color .15s;
 }
 .kpi-card:hover { border-color: var(--border-strong); }
+/* Reorderable by dragging */
+.kpi-card { cursor: grab; user-select: none; }
+.kpi-card:active { cursor: grabbing; }
+.kpi-card.dragging { opacity: .4; }
+.kpi-card.drop-target {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.kpi-card.skeleton { cursor: default; }
 .kpi-card .label {
   font-size: 10px;
   text-transform: uppercase;
