@@ -805,6 +805,23 @@ h2.section-title {
 }
 .linklike:hover { filter: brightness(1.15); }
 
+/* Booking event mismatch hint */
+.booking-hint {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding: 9px 11px;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-dim);
+}
+.booking-hint b { color: var(--warn); font-weight: 600; }
+.booking-hint .btn-mini { flex: none; }
+
 /* AI analyst panel */
 .ai-panel {
   background: var(--bg-card);

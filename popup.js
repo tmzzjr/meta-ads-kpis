@@ -607,6 +607,27 @@ function renderKpis() {
     `;
     grid.appendChild(card);
   }
+
+  renderBookingHint();
+}
+
+// Spend with zero bookings almost always means the configured event name does
+// not match what this account reports, so say that instead of showing a silent 0
+function renderBookingHint() {
+  const hint = $('#booking-hint');
+  const missing = (state.insights.spend || 0) > 0 && !(state.insights.bookings || 0);
+
+  if (!missing) { hint.hidden = true; return; }
+
+  const event = state.preferences.bookingActionType || 'schedule';
+  hint.hidden = false;
+  hint.innerHTML = `
+    <span>No conversions matched <b>${escapeHtml(event)}</b>, so Cost per Booking is 0.
+    Pick the event this account actually reports.</span>
+    <button type="button" class="btn btn-mini" id="fix-booking">Choose event</button>
+  `;
+  hint.querySelector('#fix-booking')
+      .addEventListener('click', () => chrome.runtime.openOptionsPage());
 }
 
 function renderCampaigns() {

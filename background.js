@@ -57,4 +57,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     rescheduleAlarm().then(() => sendResponse({ ok: true }));
     return true; // mantém o canal aberto até a Promise resolver
   }
+
+  // Troca/refresh do token OAuth do Claude.
+  // Roda aqui no service worker porque o endpoint de token rejeita origem de
+  // página ("Disallowed CORS origin"); o worker faz a chamada com as
+  // host_permissions da extensão, sem a checagem de CORS da página.
+  if (msg?.type === 'oauth-token') {
+    fetch(msg.url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(msg.payload)
+    })
+      .then(async (r) => sendResponse({ ok: r.ok, status: r.status, body: await r.text() }))
+      .catch((e) => sendResponse({ ok: false, status: 0, body: String(e?.message || e) }));
+    return true;
+  }
 });
