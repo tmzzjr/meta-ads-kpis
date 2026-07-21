@@ -742,13 +742,18 @@ function metricCell(label, value, dim = false) {
 async function runAnalysis() {
   if (!state.insights) return;
 
+  // No key yet: authorize inline instead of sending the user to Settings
+  const key = await getLocal(STORAGE_KEYS.ANTHROPIC_KEY);
+  if (!key) return showConnectCard();
+
   const panel = $('#ai-panel');
   const btn = $('#analyze-btn');
+  const label = btn.querySelector('.label');
   panel.hidden = false;
   panel.className = 'ai-panel thinking';
   panel.innerHTML = '<span class="spinner"></span>Reading the account…';
   btn.disabled = true;
-  btn.textContent = 'Analyzing…';
+  label.textContent = 'Analyzing…';
 
   let text = '';
   try {
@@ -772,12 +777,49 @@ async function runAnalysis() {
     panel.innerHTML = renderMarkdown(text)
       + `<div class="ai-foot">Claude Opus 4.8 · ${state.range.since} to ${state.range.until} · figures above are from your live account</div>`;
   } catch (e) {
-    panel.className = 'ai-panel error';
-    panel.textContent = e instanceof AiError ? e.message : (e.message || String(e));
+    // A rejected key sends the user straight back to authorizing
+    if (e instanceof AiError && (e.code === 'auth' || e.code === 'no-key')) {
+      showConnectCard(e.code === 'auth' ? 'That key was rejected. Try another one.' : '');
+    } else {
+      panel.className = 'ai-panel error';
+      panel.textContent = e.message || String(e);
+    }
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Analyze account';
+    label.textContent = 'Analyze account';
   }
+}
+
+// Inline authorization: paste a key, authorize, and the analysis runs immediately
+function showConnectCard(notice = '') {
+  const panel = $('#ai-panel');
+  panel.hidden = false;
+  panel.className = 'ai-panel';
+  panel.innerHTML = `
+    <div class="ai-connect">
+      <span class="connect-title">Authorize Claude to read this account</span>
+      ${notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
+      <span class="muted">Your key is stored locally in this browser and sent only to Anthropic. Analysis is billed to your own Anthropic account.</span>
+      <div class="connect-row">
+        <input type="password" class="input" id="connect-key" placeholder="sk-ant-..."
+               autocomplete="off" spellcheck="false" />
+        <button type="button" class="btn btn-primary" id="connect-btn">Authorize</button>
+      </div>
+      <span class="muted">No key yet? <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Create one in the Anthropic console</a>.</span>
+    </div>
+  `;
+
+  const input = panel.querySelector('#connect-key');
+  const authorize = async () => {
+    const value = input.value.trim();
+    if (!value) return;
+    await setLocal(STORAGE_KEYS.ANTHROPIC_KEY, value);
+    runAnalysis();
+  };
+
+  panel.querySelector('#connect-btn').addEventListener('click', authorize);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') authorize(); });
+  input.focus();
 }
 
 // Minimal markdown: headings, bold and bullets. Escapes first, so model

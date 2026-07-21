@@ -96,7 +96,6 @@
       <!-- AI analyst: senior media buyer's read on the current numbers -->
       <div class="section-head">
         <h2 class="section-title">AI analyst</h2>
-        <button id="analyze-btn" class="btn btn-mini" type="button">Analyze account</button>
       </div>
       <div id="ai-panel" class="ai-panel" hidden></div>
 
@@ -107,9 +106,19 @@
       <div id="campaigns" class="campaigns"></div>
     </div>
 
-    <footer class="footer">
-      <span id="footer-meta" class="muted"></span>
-    </footer>
+    <!-- Docked to the bottom of the popup: action bar + footer travel together -->
+    <div class="dock">
+      <div class="action-bar">
+        <button id="analyze-btn" class="spectrum-btn analyze-btn" type="button">
+          <span class="shine" aria-hidden="true"></span>
+          <svg class="bolt" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
+          <span class="label">Analyze account</span>
+        </button>
+      </div>
+      <footer class="footer">
+        <span id="footer-meta" class="muted"></span>
+      </footer>
+    </div>
   </section>
 
   <script type="module" src="popup.js"></script>

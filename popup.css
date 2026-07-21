@@ -639,8 +639,124 @@ h2.section-title {
 }
 .node-error { color: var(--bad); }
 
+/* ---------- Docked action bar ---------- */
+.dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: var(--bg-soft);
+  border-top: 1px solid var(--border);
+}
+.action-bar { padding: 10px 12px; }
+.dock .footer { border-top: 1px solid var(--border); }
+
+/* ---------- Spectrum CTA (ported from the RF Analytics download button) ---------- */
+@property --rbang {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes rainbowSpin { to { --rbang: 360deg; } }
+@keyframes spectrumFade {
+  0%, 100% { opacity: .25; }
+  50%      { opacity: 1; }
+}
+
+.spectrum-btn {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 11px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--bg);
+  background: var(--text);
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: transform .18s ease;
+}
+.spectrum-btn:hover { transform: translateY(-2px); }
+.spectrum-btn:active { transform: translateY(0); }
+.spectrum-btn:disabled { cursor: default; transform: none; opacity: .75; }
+
+/* Soft spectrum glow behind the button, breathing with the ring */
+.spectrum-btn::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  background: conic-gradient(from var(--rbang),
+    #ff004c, #ff8a00, #ffe600, #27e36b, #00e5ff, #5b6bff, #c64bff, #ff004c);
+  animation: rainbowSpin 4s linear infinite, spectrumFade 3s ease-in-out infinite;
+  filter: blur(9px);
+  z-index: -1;
+  pointer-events: none;
+}
+/* The ring itself: conic gradient masked down to a 1.6px outline */
+.spectrum-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.6px;
+  background: conic-gradient(from var(--rbang),
+    #ff004c, #ff8a00, #ffe600, #27e36b, #00e5ff, #5b6bff, #c64bff, #ff004c);
+  animation: rainbowSpin 4s linear infinite, spectrumFade 3s ease-in-out infinite;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+}
+/* Glossy sheen sweeping across on hover */
+.spectrum-btn > .shine {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+.spectrum-btn > .shine::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.85) 50%, transparent 65%);
+  background-size: 250% 100%;
+  background-position: 160% 0;
+}
+.spectrum-btn:hover > .shine::before {
+  background-position: -60% 0;
+  transition: background-position .8s ease;
+}
+.spectrum-btn .bolt { width: 14px; height: 14px; flex: none; }
+.spectrum-btn .label { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spectrum-btn::before, .spectrum-btn::after { animation: none; opacity: .7; }
+  .spectrum-btn:hover { transform: none; }
+}
+
+/* ---------- Connect Claude card ---------- */
+.ai-connect { display: flex; flex-direction: column; gap: 9px; }
+.ai-connect .connect-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ai-connect .connect-row { display: flex; gap: 6px; }
+.ai-connect .connect-row .input { flex: 1; min-width: 0; }
+.ai-connect a { color: var(--accent); }
+
 /* AI analyst panel */
-.section-head .btn-mini { margin-left: auto; }
 .ai-panel {
   background: var(--bg-card);
   border: 1px solid var(--border);

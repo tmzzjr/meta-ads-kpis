@@ -109,9 +109,10 @@ token is included. Nothing is sent until you press the button.
    date and the second sets the end, applying automatically. There is no apply button.
 4. KPIs render as cards, with the campaign list below sorted by spend. Each
    campaign row has a bar proportional to the top spender.
-5. Press **Analyze account** for the AI analyst: a senior media buyer's read on
-   the current numbers, streamed as it is written. Requires an Anthropic API key
-   in Settings; see the limitations below for what that costs.
+5. Press **Analyze account** in the docked bar at the bottom for the AI analyst:
+   a senior media buyer's read on the current numbers, streamed as it is
+   written. On first use it asks you to authorize inline, right in the popup.
+   The key can also be changed or cleared later in Settings.
 6. Open ⚙ **Settings** to:
    - choose which KPIs are visible;
    - reorder them by drag-and-drop;
