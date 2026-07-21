@@ -613,17 +613,23 @@ function renderKpis() {
 
 // Spend with zero bookings almost always means the configured event name does
 // not match what this account reports, so say that instead of showing a silent 0
-function renderBookingHint() {
+async function renderBookingHint() {
   const hint = $('#booking-hint');
-  const missing = (state.insights.spend || 0) > 0 && !(state.insights.bookings || 0);
+  const spend = state.insights.spend || 0;
+  const bookings = state.insights.bookings || 0;
 
-  if (!missing) { hint.hidden = true; return; }
+  if (!spend || bookings > 0) { hint.hidden = true; return; }
 
-  const event = state.preferences.bookingActionType || 'schedule';
+  // Still nothing: show what this account actually reports, so the gap is
+  // visible instead of being another silent zero
+  const seen = (await getLocal(STORAGE_KEYS.AVAILABLE_ACTIONS)) || [];
+  const list = seen.length
+    ? `This account reports: ${seen.slice(0, 8).map(escapeHtml).join(', ')}${seen.length > 8 ? '…' : ''}.`
+    : 'Meta returned no conversion actions at all for this period, which usually means the pixel event is not firing.';
+
   hint.hidden = false;
   hint.innerHTML = `
-    <span>No conversions matched <b>${escapeHtml(event)}</b>, so Cost per Booking is 0.
-    Pick the event this account actually reports.</span>
+    <span><b>No results found.</b> ${list}</span>
     <button type="button" class="btn btn-mini" id="fix-booking">Choose event</button>
   `;
   hint.querySelector('#fix-booking')
