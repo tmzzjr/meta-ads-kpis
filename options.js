@@ -6,6 +6,7 @@ import {
   getLocal, setLocal, STORAGE_KEYS
 } from './lib/storage.js';
 import { KPI_DEFINITIONS, DATE_PRESETS, debounce } from './lib/utils.js';
+import { getAuth, clearAuth } from './lib/oauth.js';
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -18,7 +19,7 @@ async function init() {
   applyTheme();
   populateDefaultPreset();
   await populateBookingEvents();
-  await loadApiKey();
+  await renderAuthStatus();
   renderKpiList();
   fillControls();
   bindForm();
@@ -114,9 +115,16 @@ function fillControls() {
   }
 }
 
-// The API key lives in local storage, never in synced preferences
-async function loadApiKey() {
-  $('#anthropic-key').value = (await getLocal(STORAGE_KEYS.ANTHROPIC_KEY)) || '';
+// Claude connection state lives in local storage, never in synced preferences
+async function renderAuthStatus() {
+  const auth = await getAuth();
+  const label = !auth
+    ? 'Not connected. Connect from the popup.'
+    : auth.mode === 'oauth'
+      ? 'Connected with your Claude account.'
+      : 'Connected with an API key.';
+  $('#auth-status').textContent = label;
+  $('#disconnect-btn').hidden = !auth;
 }
 
 // Drag-and-drop vanilla com base na ordem do DOM
@@ -195,12 +203,12 @@ function bindForm() {
     save();
   });
 
-  // API key saves on its own, to local storage only
-  $('#anthropic-key').addEventListener('input', debounce(async () => {
-    const key = $('#anthropic-key').value.trim();
-    await setLocal(STORAGE_KEYS.ANTHROPIC_KEY, key);
-    flash('ok', key ? 'Key saved' : 'Key cleared');
-  }, 600));
+  $('#disconnect-btn').addEventListener('click', async () => {
+    if (!confirm('Disconnect Claude? You will need to authorize again.')) return;
+    await clearAuth();
+    await renderAuthStatus();
+    flash('ok', 'Disconnected');
+  });
 
   $('#booking-event').addEventListener('change', save);
   $('#currency-select').addEventListener('change', save);

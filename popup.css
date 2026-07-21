@@ -790,6 +790,21 @@ h2.section-title {
 }
 .connect-steps .btn-mini { margin-top: 6px; }
 
+/* Text button that reads as a link */
+.linklike {
+  align-self: flex-start;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.linklike:hover { filter: brightness(1.15); }
+
 /* AI analyst panel */
 .ai-panel {
   background: var(--bg-card);

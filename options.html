@@ -95,15 +95,14 @@
       <div class="section-head">
         <h2 class="section-title">AI analyst</h2>
       </div>
-      <p class="muted">A senior media buyer's read on your live numbers, powered by Claude. Your key is stored locally and sent only to Anthropic.</p>
+      <p class="muted">A senior media buyer's read on your live numbers, powered by Claude. Connect from the popup, using <strong>Analyze campaigns</strong>.</p>
 
       <div class="setting">
         <div class="setting-label">
-          <span>Anthropic API key</span>
-          <span class="muted">From console.anthropic.com. Billed to your own account.</span>
+          <span>Connection</span>
+          <span class="muted" id="auth-status">Checking…</span>
         </div>
-        <input type="password" id="anthropic-key" class="input setting-control"
-               autocomplete="off" spellcheck="false" placeholder="sk-ant-..." />
+        <button id="disconnect-btn" class="btn btn-danger setting-control-auto" hidden>Disconnect</button>
       </div>
 
       <div class="setting">

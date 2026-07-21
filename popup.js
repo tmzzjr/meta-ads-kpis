@@ -12,6 +12,7 @@ import {
   previousRange, trendDirection, toIsoDate
 } from './lib/utils.js';
 import { analyzeAccount, AiError } from './lib/ai.js';
+import { beginAuthorization, exchangeCode, saveApiKey, getAuth } from './lib/oauth.js';
 
 // In-memory popup state (not persisted between popup openings)
 const state = {
@@ -58,12 +59,12 @@ async function init() {
   await loadAccounts({ fromCacheFirst: true });
   await loadInsights();
 
-  // Opening the console closed the popup mid-connect; pick the flow back up
-  const [pending, key] = await Promise.all([
+  // Authorizing closed the popup mid-flow; pick it back up at the paste step
+  const [pending, auth] = await Promise.all([
     getLocal(STORAGE_KEYS.PENDING_CONNECT),
-    getLocal(STORAGE_KEYS.ANTHROPIC_KEY)
+    getAuth()
   ]);
-  if (pending && !key) showConnectCard();
+  if (pending && !auth) showConnectCard();
 }
 
 /* ---------- Theme ---------- */
@@ -749,9 +750,8 @@ function metricCell(label, value, dim = false) {
 async function runAnalysis() {
   if (!state.insights) return;
 
-  // No key yet: authorize inline instead of sending the user to Settings
-  const key = await getLocal(STORAGE_KEYS.ANTHROPIC_KEY);
-  if (!key) return showConnectCard();
+  // Not connected yet: authorize inline instead of sending the user to Settings
+  if (!(await getAuth())) return showConnectCard();
 
   const panel = $('#ai-panel');
   const btn = $('#analyze-btn');
@@ -797,11 +797,10 @@ async function runAnalysis() {
   }
 }
 
-const CONSOLE_KEYS_URL = 'https://console.anthropic.com/settings/keys';
-
-// Two-step connect: open the Anthropic console, come back, paste the key.
-// Opening a tab closes the popup, so step 1 records that the flow is in
-// progress and init() reopens this card straight at step 2.
+// Connect via Claude OAuth (PKCE), the same flow as `claude setup-token`:
+// authorize on claude.ai, copy the code, paste it back. Opening the tab closes
+// the popup, so step 1 records the flow and init() reopens at the paste step.
+// An API key stays available as a fallback.
 function showConnectCard(notice = '') {
   const panel = $('#ai-panel');
   panel.hidden = false;
@@ -812,38 +811,89 @@ function showConnectCard(notice = '') {
       ${notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
       <ol class="connect-steps">
         <li>
-          <span>Create a key in the Anthropic console and copy it.</span>
-          <button type="button" class="btn btn-mini" id="open-console">Open console ↗</button>
+          <span>Authorize this extension on claude.ai and copy the code it gives you.</span>
+          <button type="button" class="btn btn-mini" id="open-auth">Authorize with Claude ↗</button>
         </li>
         <li>
-          <span>Paste it back here.</span>
+          <span>Paste the code back here.</span>
           <div class="connect-row">
-            <input type="password" class="input" id="connect-key" placeholder="sk-ant-..."
+            <input type="text" class="input" id="connect-code" placeholder="Paste the code"
                    autocomplete="off" spellcheck="false" />
             <button type="button" class="btn btn-primary" id="connect-btn">Connect</button>
           </div>
         </li>
       </ol>
-      <span class="muted">Stored locally in this browser and sent only to Anthropic. Analysis is billed to your own Anthropic account.</span>
+      <span class="muted">Uses your Claude account. Nothing is stored outside this browser.</span>
+      <button type="button" class="linklike" id="use-key">Use an API key instead</button>
     </div>
   `;
 
-  panel.querySelector('#open-console').addEventListener('click', async () => {
-    await setLocal(STORAGE_KEYS.PENDING_CONNECT, true);
-    chrome.tabs.create({ url: CONSOLE_KEYS_URL });
+  panel.querySelector('#open-auth').addEventListener('click', async () => {
+    const btn = panel.querySelector('#open-auth');
+    btn.disabled = true;
+    try {
+      const url = await beginAuthorization();
+      await setLocal(STORAGE_KEYS.PENDING_CONNECT, true);
+      chrome.tabs.create({ url });
+    } catch (e) {
+      showConnectCard(e.message || 'Could not start the authorization.');
+    }
   });
 
-  const input = panel.querySelector('#connect-key');
+  const input = panel.querySelector('#connect-code');
   const connect = async () => {
     const value = input.value.trim();
     if (!value) return;
-    await setLocal(STORAGE_KEYS.ANTHROPIC_KEY, value);
-    await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
-    runAnalysis();
+
+    const btn = panel.querySelector('#connect-btn');
+    btn.disabled = true;
+    btn.textContent = 'Connecting…';
+    try {
+      await exchangeCode(value);
+      await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
+      runAnalysis();
+    } catch (e) {
+      showConnectCard(e.message || 'Could not complete the authorization.');
+    }
   };
 
   panel.querySelector('#connect-btn').addEventListener('click', connect);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+  panel.querySelector('#use-key').addEventListener('click', showKeyCard);
+  input.focus();
+}
+
+// Fallback path: paste a plain API key instead of authorizing
+function showKeyCard(notice = '') {
+  const panel = $('#ai-panel');
+  panel.hidden = false;
+  panel.className = 'ai-panel';
+  panel.innerHTML = `
+    <div class="ai-connect">
+      <span class="connect-title">Use an Anthropic API key</span>
+      ${typeof notice === 'string' && notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
+      <span class="muted">Billed to your own Anthropic account. Stored locally in this browser.</span>
+      <div class="connect-row">
+        <input type="password" class="input" id="key-input" placeholder="sk-ant-..."
+               autocomplete="off" spellcheck="false" />
+        <button type="button" class="btn btn-primary" id="key-btn">Connect</button>
+      </div>
+      <button type="button" class="linklike" id="back-oauth">Authorize with Claude instead</button>
+    </div>
+  `;
+
+  const input = panel.querySelector('#key-input');
+  const connect = async () => {
+    const value = input.value.trim();
+    if (!value) return;
+    await saveApiKey(value);
+    await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
+    runAnalysis();
+  };
+
+  panel.querySelector('#key-btn').addEventListener('click', connect);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+  panel.querySelector('#back-oauth').addEventListener('click', () => showConnectCard());
   input.focus();
 }
 

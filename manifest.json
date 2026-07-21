@@ -28,6 +28,7 @@
   ],
   "host_permissions": [
     "https://graph.facebook.com/*",
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "https://console.anthropic.com/*"
   ]
 }
