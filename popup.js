@@ -100,7 +100,6 @@ function bindEvents() {
 
   // Campaign tree: expand, pause/resume and budget editing
   $('#campaigns').addEventListener('click', onTreeClick);
-  $('#campaigns').addEventListener('change', onTreeToggle);
 
   // Calendar popover
   $('#range-trigger').addEventListener('click', toggleCalendar);
@@ -616,19 +615,51 @@ function renderCampaigns() {
 
   // Sort by spend, descending
   const sorted = [...state.campaigns].sort((a, b) => (b.spend || 0) - (a.spend || 0));
-  const topSpend = sorted[0]?.spend || 0;
 
   for (const c of sorted) {
-    root.appendChild(buildNode(c, 'campaign', topSpend));
+    root.appendChild(buildNode(c, 'campaign'));
   }
 }
 
+/* Inline icons, matching the RF Analytics campaign table */
+const ICONS = {
+  chevron: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>',
+  campaign: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+  adset: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 2 9 5-9 5-9-5 9-5z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/></svg>',
+  ad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-4.5-4.5L9 18"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>'
+};
+
+// Meta reports many effective_status values; collapse them into the three
+// delivery states the RF table shows
+function deliveryState(node) {
+  const eff = String(node.effective_status || node.status || '').toUpperCase();
+  if (eff === 'ACTIVE') return 'active';
+  if (eff === 'PENDING_REVIEW' || eff === 'IN_PROCESS' || eff === 'PENDING_BILLING_INFO') return 'review';
+  return 'paused';
+}
+
+const STATE_LABEL = { active: 'Active', paused: 'Paused', review: 'In review' };
+
+// Human subtitle per level, mirroring the RF table's second line
+function nodeSubtitle(node, level) {
+  if (level === 'campaign') return prettyEnum(node.objective) || 'Campaign';
+  if (level === 'adset') return prettyEnum(node.optimization_goal) || 'Ad set';
+  return 'Ad';
+}
+
+function prettyEnum(v) {
+  if (!v) return '';
+  return String(v).toLowerCase().replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase());
+}
+
 // Builds one row of the campaign > ad set > ad tree
-function buildNode(node, level, topSpend) {
+function buildNode(node, level) {
   const currency = state.preferences.preferredCurrency
     || node.currency || state.account.currency || 'USD';
-  const active = String(node.status || '').toUpperCase() === 'ACTIVE';
-  const share = topSpend > 0 ? Math.max(2, ((node.spend || 0) / topSpend) * 100) : 0;
+  const stateName = deliveryState(node);
+  const on = stateName === 'active';
+  const hasChildren = level !== 'ad';
 
   // A node carries either a daily or a lifetime budget, or none (budget lives
   // on another level, as with campaign budget optimization)
@@ -637,53 +668,82 @@ function buildNode(node, level, topSpend) {
   const minor = field ? Number(node[field]) || 0 : 0;
 
   const wrap = document.createElement('div');
-  wrap.className = `node level-${level}${active ? '' : ' paused'}`;
+  wrap.className = `node level-${level}${on ? '' : ' paused'}`;
   wrap.dataset.id = node.id;
   wrap.dataset.level = level;
   wrap.dataset.currency = currency;
   if (field) wrap.dataset.minor = String(minor);
 
-  const budgetCell = field
-    ? `<button class="node-budget" type="button" data-field="${field}" title="Click to edit budget">
-         ${formatValue(minor / 100, 'currency', currency)}${field === 'daily_budget' ? '/day' : ''}
-       </button>`
-    : '<span class="node-budget none"></span>';
-
   const row = document.createElement('div');
-  row.className = 'node-row';
+  row.className = `node-row${hasChildren ? ' clickable' : ''}`;
   row.innerHTML = `
-    <button class="twisty" type="button" aria-label="Expand"${level === 'ad' ? ' hidden' : ''}>›</button>
-    <label class="switch sm" title="${active ? 'Pause' : 'Activate'}">
-      <input type="checkbox" ${active ? 'checked' : ''} />
-      <span class="track"></span>
-    </label>
-    <span class="node-name" title="${escapeHtml(node.name || '')}">${escapeHtml(node.name || '(unnamed)')}</span>
-    ${budgetCell}
-    <span class="node-spend">${formatValue(node.spend, 'currency', currency)}</span>
+    ${hasChildren
+      ? `<button class="twisty" type="button" aria-label="Expand">${ICONS.chevron}</button>`
+      : `<span class="node-glyph">${ICONS.ad}</span>`}
+    <button class="node-switch${on ? ' on' : ''}" type="button"
+            ${stateName === 'review' ? 'disabled' : ''}
+            aria-pressed="${on}"
+            title="${stateName === 'review' ? 'In review' : on ? 'Pause' : 'Activate'}">
+      <span class="knob"></span>
+    </button>
+    <div class="node-title">
+      <div class="node-title-line">
+        <span class="node-name" title="${escapeHtml(node.name || '')}">${escapeHtml(node.name || '(unnamed)')}</span>
+        <span class="status-pill ${stateName}"><span class="dot"></span>${STATE_LABEL[stateName]}</span>
+      </div>
+      <div class="node-sub">${escapeHtml(nodeSubtitle(node, level))}</div>
+    </div>
   `;
   wrap.appendChild(row);
+
+  const metrics = document.createElement('div');
+  metrics.className = 'node-metrics';
+  metrics.innerHTML = `
+    <div class="metric">
+      <span class="m-label">Budget</span>
+      ${field
+        ? `<button class="node-budget" type="button" data-field="${field}" title="Click to edit">
+             <span class="amount">${formatValue(minor / 100, 'currency', currency)}</span>
+             ${field === 'daily_budget' ? '<span class="unit">/day</span>' : ''}
+             <span class="pencil">${ICONS.pencil}</span>
+           </button>`
+        : '<span class="m-value dash">-</span>'}
+    </div>
+    ${metricCell('Results', node.bookings ? formatValue(node.bookings, 'integer') : '-')}
+    ${metricCell('Cost / result', node.cost_per_booking ? formatValue(node.cost_per_booking, 'currency', currency) : '-', true)}
+    ${metricCell('Spent', node.spend ? formatValue(node.spend, 'currency', currency) : '-')}
+    ${metricCell('Reach', node.reach ? formatValue(node.reach, 'integer') : '-', true)}
+    ${metricCell('CTR', node.ctr ? formatValue(node.ctr, 'percent') : '-', true)}
+  `;
+  wrap.appendChild(metrics);
 
   const children = document.createElement('div');
   children.className = 'node-children';
   children.hidden = true;
   wrap.appendChild(children);
 
-  const bar = document.createElement('div');
-  bar.className = 'share';
-  bar.style.width = `${share}%`;
-  wrap.appendChild(bar);
-
   return wrap;
+}
+
+function metricCell(label, value, dim = false) {
+  return `<div class="metric${dim ? ' dim' : ''}">
+    <span class="m-label">${label}</span>
+    <span class="m-value">${value}</span>
+  </div>`;
 }
 
 /* ---------- Campaign tree interactions ---------- */
 
 function onTreeClick(e) {
-  const twisty = e.target.closest('.twisty');
-  if (twisty) return toggleNode(twisty.closest('.node'));
+  // Switch and budget must win over the row's expand handler
+  const sw = e.target.closest('.node-switch');
+  if (sw) { e.stopPropagation(); return onSwitchClick(sw); }
 
   const budget = e.target.closest('button.node-budget');
-  if (budget) return startBudgetEdit(budget);
+  if (budget) { e.stopPropagation(); return startBudgetEdit(budget); }
+
+  const row = e.target.closest('.node-row.clickable');
+  if (row) return toggleNode(row.closest('.node'));
 }
 
 // Expands a node, lazily fetching its children the first time
@@ -714,9 +774,8 @@ async function toggleNode(wrap) {
       children.innerHTML = `<div class="node-empty">No ${childLevel === 'adset' ? 'ad sets' : 'ads'} here.</div>`;
     } else {
       const sorted = [...rows].sort((a, b) => (b.spend || 0) - (a.spend || 0));
-      const top = sorted[0]?.spend || 0;
       for (const r of sorted) {
-        children.appendChild(buildNode({ ...r, currency: wrap.dataset.currency }, childLevel, top));
+        children.appendChild(buildNode({ ...r, currency: wrap.dataset.currency }, childLevel));
       }
     }
     children.dataset.loaded = '1';
@@ -725,23 +784,37 @@ async function toggleNode(wrap) {
   }
 }
 
-// Pause or resume. Reverts the switch if Meta rejects the change.
-async function onTreeToggle(e) {
-  const cb = e.target.closest('input[type="checkbox"]');
-  if (!cb) return;
-  const wrap = cb.closest('.node');
-  const next = cb.checked ? 'ACTIVE' : 'PAUSED';
+// Pause or resume. Flips optimistically and rolls back if Meta rejects it.
+async function onSwitchClick(btn) {
+  const wrap = btn.closest('.node');
+  const turningOn = !btn.classList.contains('on');
 
-  cb.disabled = true;
+  btn.disabled = true;
+  paintDelivery(wrap, btn, turningOn);
+
   try {
-    await setEntityStatus(wrap.dataset.id, next);
-    wrap.classList.toggle('paused', next === 'PAUSED');
+    await setEntityStatus(wrap.dataset.id, turningOn ? 'ACTIVE' : 'PAUSED');
     hideStatus();
   } catch (err) {
-    cb.checked = !cb.checked;
+    paintDelivery(wrap, btn, !turningOn);   // roll back
     showStatus('error', friendlyError(err));
   } finally {
-    cb.disabled = false;
+    btn.disabled = false;
+  }
+}
+
+// Keeps switch, row opacity and status pill in sync
+function paintDelivery(wrap, btn, on) {
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-pressed', String(on));
+  btn.title = on ? 'Pause' : 'Activate';
+  wrap.classList.toggle('paused', !on);
+
+  const pill = wrap.querySelector(':scope > .node-row .status-pill');
+  if (pill) {
+    const name = on ? 'active' : 'paused';
+    pill.className = `status-pill ${name}`;
+    pill.innerHTML = `<span class="dot"></span>${STATE_LABEL[name]}`;
   }
 }
 
@@ -778,8 +851,7 @@ function startBudgetEdit(btn) {
     try {
       await setEntityBudget(wrap.dataset.id, field, major * 100);
       wrap.dataset.minor = String(Math.round(major * 100));
-      btn.textContent = formatValue(major, 'currency', currency)
-        + (field === 'daily_budget' ? '/day' : '');
+      btn.querySelector('.amount').textContent = formatValue(major, 'currency', currency);
       hideStatus();
     } catch (err) {
       showStatus('error', friendlyError(err));
