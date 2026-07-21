@@ -11,6 +11,7 @@ import {
   KPI_DEFINITIONS, DATE_PRESETS, formatValue, percentChange,
   previousRange, trendDirection, toIsoDate
 } from './lib/utils.js';
+import { analyzeAccount, AiError } from './lib/ai.js';
 
 // In-memory popup state (not persisted between popup openings)
 const state = {
@@ -97,6 +98,8 @@ function bindEvents() {
     const chip = e.target.closest('.chip');
     if (chip) setPreset(chip.dataset.preset, { reload: true });
   });
+
+  $('#analyze-btn').addEventListener('click', runAnalysis);
 
   // Campaign tree: expand, pause/resume and budget editing
   $('#campaigns').addEventListener('click', onTreeClick);
@@ -544,6 +547,7 @@ function clearKpis() {
   $('#campaigns').innerHTML = '';
   $('#footer-meta').textContent = '';
   $('#campaign-count').hidden = true;
+  $('#ai-panel').hidden = true;   // any prior read is stale once data reloads
 }
 
 // Animated placeholders while insights load
@@ -563,6 +567,7 @@ function renderSkeleton() {
   }
   $('#campaigns').innerHTML = '';
   $('#campaign-count').hidden = true;
+  $('#ai-panel').hidden = true;   // any prior read is stale once data reloads
 }
 
 function renderKpis() {
@@ -730,6 +735,82 @@ function metricCell(label, value, dim = false) {
     <span class="m-label">${label}</span>
     <span class="m-value">${value}</span>
   </div>`;
+}
+
+/* ---------- AI analyst ---------- */
+
+async function runAnalysis() {
+  if (!state.insights) return;
+
+  const panel = $('#ai-panel');
+  const btn = $('#analyze-btn');
+  panel.hidden = false;
+  panel.className = 'ai-panel thinking';
+  panel.innerHTML = '<span class="spinner"></span>Reading the account…';
+  btn.disabled = true;
+  btn.textContent = 'Analyzing…';
+
+  let text = '';
+  try {
+    await analyzeAccount({
+      account: state.account,
+      range: state.range,
+      currency: state.preferences.preferredCurrency || state.account.currency || 'USD',
+      insights: state.insights,
+      campaigns: state.campaigns,
+      bookingEvent: state.preferences.bookingActionType,
+      language: state.preferences.insightsLanguage === 'pt-BR' ? 'pt-BR' : 'en'
+    }, (chunk) => {
+      // First chunk replaces the spinner
+      if (!text) panel.className = 'ai-panel';
+      text += chunk;
+      panel.innerHTML = renderMarkdown(text) + '<span class="caret-blink"></span>';
+      panel.scrollIntoView({ block: 'nearest' });
+    });
+
+    panel.className = 'ai-panel';
+    panel.innerHTML = renderMarkdown(text)
+      + `<div class="ai-foot">Claude Opus 4.8 · ${state.range.since} to ${state.range.until} · figures above are from your live account</div>`;
+  } catch (e) {
+    panel.className = 'ai-panel error';
+    panel.textContent = e instanceof AiError ? e.message : (e.message || String(e));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Analyze account';
+  }
+}
+
+// Minimal markdown: headings, bold and bullets. Escapes first, so model
+// output can never inject markup into the popup.
+function renderMarkdown(src) {
+  const inline = (s) => escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  const out = [];
+  let list = null;
+
+  for (const rawLine of src.split('\n')) {
+    const line = rawLine.trim();
+
+    if (!line) { closeList(); continue; }
+
+    if (/^#{1,6}\s/.test(line)) {
+      closeList();
+      out.push(`<h3>${inline(line.replace(/^#{1,6}\s*/, ''))}</h3>`);
+    } else if (/^[-*]\s+/.test(line)) {
+      list = list || [];
+      list.push(`<li>${inline(line.replace(/^[-*]\s+/, ''))}</li>`);
+    } else {
+      closeList();
+      out.push(`<p>${inline(line)}</p>`);
+    }
+  }
+  closeList();
+  return out.join('');
+
+  function closeList() {
+    if (!list) return;
+    out.push(`<ul>${list.join('')}</ul>`);
+    list = null;
+  }
 }
 
 /* ---------- Campaign tree interactions ---------- */

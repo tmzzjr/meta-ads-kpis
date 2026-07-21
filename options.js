@@ -3,7 +3,7 @@
 
 import {
   getPreferences, setPreferences, DEFAULT_PREFERENCES, clearCredentials,
-  getLocal, STORAGE_KEYS
+  getLocal, setLocal, STORAGE_KEYS
 } from './lib/storage.js';
 import { KPI_DEFINITIONS, DATE_PRESETS, debounce } from './lib/utils.js';
 
@@ -18,6 +18,7 @@ async function init() {
   applyTheme();
   populateDefaultPreset();
   await populateBookingEvents();
+  await loadApiKey();
   renderKpiList();
   fillControls();
   bindForm();
@@ -106,6 +107,16 @@ function fillControls() {
     seg.classList.toggle('active', active);
     seg.setAttribute('aria-checked', String(active));
   }
+  for (const seg of $('#lang-seg').querySelectorAll('.seg')) {
+    const active = seg.dataset.lang === (prefs.insightsLanguage || 'en');
+    seg.classList.toggle('active', active);
+    seg.setAttribute('aria-checked', String(active));
+  }
+}
+
+// The API key lives in local storage, never in synced preferences
+async function loadApiKey() {
+  $('#anthropic-key').value = (await getLocal(STORAGE_KEYS.ANTHROPIC_KEY)) || '';
 }
 
 // Drag-and-drop vanilla com base na ordem do DOM
@@ -175,6 +186,22 @@ function bindForm() {
     save();
   });
 
+  // Language segmented control
+  $('#lang-seg').addEventListener('click', (e) => {
+    const seg = e.target.closest('.seg');
+    if (!seg) return;
+    prefs.insightsLanguage = seg.dataset.lang;
+    fillControls();
+    save();
+  });
+
+  // API key saves on its own, to local storage only
+  $('#anthropic-key').addEventListener('input', debounce(async () => {
+    const key = $('#anthropic-key').value.trim();
+    await setLocal(STORAGE_KEYS.ANTHROPIC_KEY, key);
+    flash('ok', key ? 'Key saved' : 'Key cleared');
+  }, 600));
+
   $('#booking-event').addEventListener('change', save);
   $('#currency-select').addEventListener('change', save);
   $('#default-preset').addEventListener('change', save);
@@ -200,6 +227,7 @@ async function save() {
     kpiEnabled,
     preferredCurrency: $('#currency-select').value,
     bookingActionType: $('#booking-event').value || 'schedule',
+    insightsLanguage: prefs.insightsLanguage || 'en',
     theme: prefs.theme || 'auto',
     defaultDatePreset: $('#default-preset').value,
     autoRefreshMinutes: clampInt($('#auto-refresh').value, 0, 120)

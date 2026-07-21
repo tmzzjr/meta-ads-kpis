@@ -639,6 +639,50 @@ h2.section-title {
 }
 .node-error { color: var(--bad); }
 
+/* AI analyst panel */
+.section-head .btn-mini { margin-left: auto; }
+.ai-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 11px 13px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-dim);
+}
+.ai-panel.thinking { color: var(--text-muted); }
+.ai-panel.error { border-color: var(--bad); color: var(--bad); }
+.ai-panel h3 {
+  margin: 13px 0 5px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 600;
+  color: var(--accent);
+}
+.ai-panel h3:first-child { margin-top: 0; }
+.ai-panel p { margin: 0 0 8px; }
+.ai-panel p:last-child { margin-bottom: 0; }
+.ai-panel strong { color: var(--text); font-weight: 600; }
+.ai-panel ul { margin: 0 0 8px; padding-left: 16px; }
+.ai-panel li { margin-bottom: 4px; }
+.caret-blink {
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  background: var(--accent);
+  vertical-align: -2px;
+  animation: blink 1s steps(2) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.ai-foot {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
 /* Status */
 .status {
   padding: 10px 12px;

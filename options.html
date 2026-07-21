@@ -93,6 +93,33 @@
 
     <section class="options-section">
       <div class="section-head">
+        <h2 class="section-title">AI analyst</h2>
+      </div>
+      <p class="muted">A senior media buyer's read on your live numbers, powered by Claude. Your key is stored locally and sent only to Anthropic.</p>
+
+      <div class="setting">
+        <div class="setting-label">
+          <span>Anthropic API key</span>
+          <span class="muted">From console.anthropic.com. Billed to your own account.</span>
+        </div>
+        <input type="password" id="anthropic-key" class="input setting-control"
+               autocomplete="off" spellcheck="false" placeholder="sk-ant-..." />
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">
+          <span>Analysis language</span>
+          <span class="muted">Language the analyst writes in.</span>
+        </div>
+        <div id="lang-seg" class="segmented" role="radiogroup" aria-label="Analysis language">
+          <button type="button" class="seg" data-lang="en" role="radio">English</button>
+          <button type="button" class="seg" data-lang="pt-BR" role="radio">Português</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="options-section">
+      <div class="section-head">
         <h2 class="section-title">Account and data</h2>
       </div>
       <div class="setting">

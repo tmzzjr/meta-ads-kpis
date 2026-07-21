@@ -81,13 +81,22 @@ edit fails with a permissions error from Meta.
 
 Declared in `manifest.json`:
 
-- `storage` — stores the token (`chrome.storage.local`) and preferences (`chrome.storage.sync`).
+- `storage` — stores tokens (`chrome.storage.local`) and preferences (`chrome.storage.sync`).
 - `alarms` — schedules the background auto refresh.
 - `host_permissions: https://graph.facebook.com/*` — calls the Graph API.
+- `host_permissions: https://api.anthropic.com/*` — calls the Claude API for the
+  AI analyst. Only reached when you press **Analyze account**.
 
-The extension does **not** read the pages you visit, does **not** inject scripts
-into websites, and does **not** send your token anywhere other than
-`graph.facebook.com`.
+The extension does **not** read the pages you visit and does **not** inject
+scripts into websites. Your Meta token goes only to `graph.facebook.com`, and
+your Anthropic key goes only to `api.anthropic.com`. Neither is ever sent
+anywhere else.
+
+**What the AI analyst sends.** Pressing **Analyze account** sends aggregate
+numbers to Anthropic: account name and currency, the date range, the KPI totals,
+and one line per active campaign (name, objective, budget, spend, bookings, CTR,
+CPC, impressions, frequency). No customer data, audience data, creative, or Meta
+token is included. Nothing is sent until you press the button.
 
 ---
 
@@ -100,7 +109,10 @@ into websites, and does **not** send your token anywhere other than
    date and the second sets the end, applying automatically. There is no apply button.
 4. KPIs render as cards, with the campaign list below sorted by spend. Each
    campaign row has a bar proportional to the top spender.
-5. Open ⚙ **Settings** to:
+5. Press **Analyze account** for the AI analyst: a senior media buyer's read on
+   the current numbers, streamed as it is written. Requires an Anthropic API key
+   in Settings; see the limitations below for what that costs.
+6. Open ⚙ **Settings** to:
    - choose which KPIs are visible;
    - reorder them by drag-and-drop;
    - set a preferred currency;
@@ -137,6 +149,15 @@ lower is better (CPC, CPM, Cost per Result, Frequency), green means a drop.
   so smaller values are rounded up.
 - **No automated tests.** The API layer is simple enough to inspect by hand, but
   testing across currencies and account timezones is recommended.
+- **The AI analyst bills your own Anthropic account.** It runs Claude Opus 4.8
+  with adaptive thinking at medium effort. A typical analysis costs a few cents;
+  a large account with many campaigns costs more, because every active campaign
+  is one line of input. There is no spending cap in the extension, so set limits
+  in the Anthropic console if that matters.
+- **The analyst only sees what the dashboard sees.** Active campaigns only, one
+  date range, no ad set or ad detail, no historical trend beyond the previous
+  period. It cannot see your creative, your landing pages, or your CRM, so treat
+  its read as a starting point rather than a verdict.
 - **Write actions are immediate.** Switches and budget edits hit the Meta API
   right away, with no confirmation step and no undo. They affect live campaigns
   and real spend. A failed change reverts the switch and shows the API error.
