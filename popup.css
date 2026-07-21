@@ -51,6 +51,9 @@ body.light {
 }
 
 * { box-sizing: border-box; }
+/* The hidden attribute only sets display:none at user-agent level, so any rule
+   declaring display wins over it. Enforce it once, globally. */
+[hidden] { display: none !important; }
 html, body {
   margin: 0;
   padding: 0;
