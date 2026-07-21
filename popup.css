@@ -737,7 +737,7 @@ h2.section-title {
   background-position: -60% 0;
   transition: background-position .8s ease;
 }
-.spectrum-btn .bolt { width: 14px; height: 14px; flex: none; }
+.spectrum-btn .ai-icon { width: 15px; height: 15px; flex: none; }
 .spectrum-btn .label { position: relative; z-index: 1; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -752,9 +752,43 @@ h2.section-title {
   font-weight: 600;
   color: var(--text);
 }
-.ai-connect .connect-row { display: flex; gap: 6px; }
+.ai-connect .connect-row { display: flex; gap: 6px; margin-top: 6px; }
 .ai-connect .connect-row .input { flex: 1; min-width: 0; }
 .ai-connect a { color: var(--accent); }
+
+/* Numbered connect steps */
+.connect-steps {
+  list-style: none;
+  counter-reset: step;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.connect-steps > li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 25px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.connect-steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 17px;
+  height: 17px;
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent-text);
+  background: var(--accent);
+  border-radius: 50%;
+}
+.connect-steps .btn-mini { margin-top: 6px; }
 
 /* AI analyst panel */
 .ai-panel {

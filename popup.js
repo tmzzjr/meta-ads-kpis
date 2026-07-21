@@ -1,7 +1,7 @@
 // Popup logic: login, account selection, date range and KPI rendering.
 
 import {
-  STORAGE_KEYS, getLocal, setLocal, getPreferences
+  STORAGE_KEYS, getLocal, setLocal, removeLocal, getPreferences
 } from './lib/storage.js';
 import {
   listAdAccounts, validateToken, getAccountInsights, combineInsights,
@@ -57,6 +57,13 @@ async function init() {
 
   await loadAccounts({ fromCacheFirst: true });
   await loadInsights();
+
+  // Opening the console closed the popup mid-connect; pick the flow back up
+  const [pending, key] = await Promise.all([
+    getLocal(STORAGE_KEYS.PENDING_CONNECT),
+    getLocal(STORAGE_KEYS.ANTHROPIC_KEY)
+  ]);
+  if (pending && !key) showConnectCard();
 }
 
 /* ---------- Theme ---------- */
@@ -786,39 +793,57 @@ async function runAnalysis() {
     }
   } finally {
     btn.disabled = false;
-    label.textContent = 'Analyze account';
+    label.textContent = 'Analyze campaigns';
   }
 }
 
-// Inline authorization: paste a key, authorize, and the analysis runs immediately
+const CONSOLE_KEYS_URL = 'https://console.anthropic.com/settings/keys';
+
+// Two-step connect: open the Anthropic console, come back, paste the key.
+// Opening a tab closes the popup, so step 1 records that the flow is in
+// progress and init() reopens this card straight at step 2.
 function showConnectCard(notice = '') {
   const panel = $('#ai-panel');
   panel.hidden = false;
   panel.className = 'ai-panel';
   panel.innerHTML = `
     <div class="ai-connect">
-      <span class="connect-title">Authorize Claude to read this account</span>
+      <span class="connect-title">Connect Claude</span>
       ${notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
-      <span class="muted">Your key is stored locally in this browser and sent only to Anthropic. Analysis is billed to your own Anthropic account.</span>
-      <div class="connect-row">
-        <input type="password" class="input" id="connect-key" placeholder="sk-ant-..."
-               autocomplete="off" spellcheck="false" />
-        <button type="button" class="btn btn-primary" id="connect-btn">Authorize</button>
-      </div>
-      <span class="muted">No key yet? <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Create one in the Anthropic console</a>.</span>
+      <ol class="connect-steps">
+        <li>
+          <span>Create a key in the Anthropic console and copy it.</span>
+          <button type="button" class="btn btn-mini" id="open-console">Open console ↗</button>
+        </li>
+        <li>
+          <span>Paste it back here.</span>
+          <div class="connect-row">
+            <input type="password" class="input" id="connect-key" placeholder="sk-ant-..."
+                   autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn btn-primary" id="connect-btn">Connect</button>
+          </div>
+        </li>
+      </ol>
+      <span class="muted">Stored locally in this browser and sent only to Anthropic. Analysis is billed to your own Anthropic account.</span>
     </div>
   `;
 
+  panel.querySelector('#open-console').addEventListener('click', async () => {
+    await setLocal(STORAGE_KEYS.PENDING_CONNECT, true);
+    chrome.tabs.create({ url: CONSOLE_KEYS_URL });
+  });
+
   const input = panel.querySelector('#connect-key');
-  const authorize = async () => {
+  const connect = async () => {
     const value = input.value.trim();
     if (!value) return;
     await setLocal(STORAGE_KEYS.ANTHROPIC_KEY, value);
+    await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
     runAnalysis();
   };
 
-  panel.querySelector('#connect-btn').addEventListener('click', authorize);
-  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') authorize(); });
+  panel.querySelector('#connect-btn').addEventListener('click', connect);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
   input.focus();
 }
 

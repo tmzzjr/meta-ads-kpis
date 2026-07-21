@@ -85,14 +85,14 @@ Declared in `manifest.json`:
 - `alarms` — schedules the background auto refresh.
 - `host_permissions: https://graph.facebook.com/*` — calls the Graph API.
 - `host_permissions: https://api.anthropic.com/*` — calls the Claude API for the
-  AI analyst. Only reached when you press **Analyze account**.
+  AI analyst. Only reached when you press **Analyze campaigns**.
 
 The extension does **not** read the pages you visit and does **not** inject
 scripts into websites. Your Meta token goes only to `graph.facebook.com`, and
 your Anthropic key goes only to `api.anthropic.com`. Neither is ever sent
 anywhere else.
 
-**What the AI analyst sends.** Pressing **Analyze account** sends aggregate
+**What the AI analyst sends.** Pressing **Analyze campaigns** sends aggregate
 numbers to Anthropic: account name and currency, the date range, the KPI totals,
 and one line per active campaign (name, objective, budget, spend, bookings, CTR,
 CPC, impressions, frequency). No customer data, audience data, creative, or Meta
@@ -109,10 +109,11 @@ token is included. Nothing is sent until you press the button.
    date and the second sets the end, applying automatically. There is no apply button.
 4. KPIs render as cards, with the campaign list below sorted by spend. Each
    campaign row has a bar proportional to the top spender.
-5. Press **Analyze account** in the docked bar at the bottom for the AI analyst:
+5. Press **Analyze campaigns** in the docked bar at the bottom for the AI analyst:
    a senior media buyer's read on the current numbers, streamed as it is
-   written. On first use it asks you to authorize inline, right in the popup.
-   The key can also be changed or cleared later in Settings.
+   written. On first use it walks you through connecting: open the Anthropic
+   console, copy a key, paste it back. The key can also be changed or cleared
+   later in Settings.
 6. Open ⚙ **Settings** to:
    - choose which KPIs are visible;
    - reorder them by drag-and-drop;
