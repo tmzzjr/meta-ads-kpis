@@ -887,11 +887,10 @@ async function runAnalysis() {
   }
 }
 
-// Connect via Claude OAuth (PKCE), the same flow as `claude setup-token`:
-// authorize on claude.ai, copy the code, paste it back. Opening the tab closes
-// the popup, so step 1 records the flow and init() reopens at the paste step.
-// An API key stays available as a fallback.
-function showConnectCard(notice = '') {
+// Claude OAuth (PKCE), the same flow as `claude setup-token`. Kept available,
+// but Anthropic currently answers 429 to every code exchange on the public
+// client, so the API key path above is the one that works.
+function showOAuthCard(notice = '') {
   const panel = $('#ai-panel');
   panel.hidden = false;
   panel.className = 'ai-panel';
@@ -943,34 +942,50 @@ function showConnectCard(notice = '') {
       await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
       runAnalysis();
     } catch (e) {
-      showConnectCard(e.message || 'Could not complete the authorization.');
+      // A blocked exchange is not worth retrying: route back to the key path
+      if (e.code === 'blocked') showConnectCard(e.message);
+      else showOAuthCard(e.message || 'Could not complete the authorization.');
     }
   };
 
   panel.querySelector('#connect-btn').addEventListener('click', connect);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
-  panel.querySelector('#use-key').addEventListener('click', showKeyCard);
+  panel.querySelector('#use-key').addEventListener('click', () => showConnectCard());
   input.focus();
 }
 
-// Fallback path: paste a plain API key instead of authorizing
-function showKeyCard(notice = '') {
+// Primary path: an Anthropic API key. This is what works today.
+function showConnectCard(notice = '') {
   const panel = $('#ai-panel');
   panel.hidden = false;
   panel.className = 'ai-panel';
   panel.innerHTML = `
     <div class="ai-connect">
-      <span class="connect-title">Use an Anthropic API key</span>
+      <span class="connect-title">Connect Claude</span>
       ${typeof notice === 'string' && notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
-      <span class="muted">Billed to your own Anthropic account. Stored locally in this browser.</span>
-      <div class="connect-row">
-        <input type="password" class="input" id="key-input" placeholder="sk-ant-..."
-               autocomplete="off" spellcheck="false" />
-        <button type="button" class="btn btn-primary" id="key-btn">Connect</button>
-      </div>
-      <button type="button" class="linklike" id="back-oauth">Authorize with Claude instead</button>
+      <ol class="connect-steps">
+        <li>
+          <span>Create an API key in the Anthropic console and copy it.</span>
+          <button type="button" class="btn btn-mini" id="open-console">Open console ↗</button>
+        </li>
+        <li>
+          <span>Paste it back here.</span>
+          <div class="connect-row">
+            <input type="password" class="input" id="key-input" placeholder="sk-ant-..."
+                   autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn btn-primary" id="key-btn">Connect</button>
+          </div>
+        </li>
+      </ol>
+      <span class="muted">Stored locally in this browser and sent only to Anthropic. Billed to your own account.</span>
+      <button type="button" class="linklike" id="try-oauth">Authorize with a Claude account instead</button>
     </div>
   `;
+
+  panel.querySelector('#open-console').addEventListener('click', async () => {
+    await setLocal(STORAGE_KEYS.PENDING_CONNECT, true);
+    chrome.tabs.create({ url: 'https://console.anthropic.com/settings/keys' });
+  });
 
   const input = panel.querySelector('#key-input');
   const connect = async () => {
@@ -983,7 +998,7 @@ function showKeyCard(notice = '') {
 
   panel.querySelector('#key-btn').addEventListener('click', connect);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
-  panel.querySelector('#back-oauth').addEventListener('click', () => showConnectCard());
+  panel.querySelector('#try-oauth').addEventListener('click', () => showOAuthCard());
   input.focus();
 }
 
