@@ -758,6 +758,35 @@ h2.section-title {
 }
 
 /* ---------- Connect Claude card ---------- */
+/* Collapsed by default so it costs one line until the user needs it */
+.connect-box > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+.connect-box > summary::-webkit-details-marker { display: none; }
+.connect-box > summary::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--text-muted);
+  border-bottom: 1.5px solid var(--text-muted);
+  transform: rotate(-45deg);
+  transition: transform .15s;
+}
+.connect-box[open] > summary::before { transform: rotate(45deg); }
+.connect-box > summary .summary-note {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.connect-box > summary:hover .connect-title { color: var(--accent); }
+.connect-box[open] > summary { margin-bottom: 11px; }
+
 .ai-connect { display: flex; flex-direction: column; gap: 9px; }
 .ai-connect .connect-title {
   font-size: 12px;

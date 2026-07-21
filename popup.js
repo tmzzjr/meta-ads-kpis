@@ -1,7 +1,7 @@
 // Popup logic: login, account selection, date range and KPI rendering.
 
 import {
-  STORAGE_KEYS, getLocal, setLocal, removeLocal, getPreferences, setPreferences
+  STORAGE_KEYS, getLocal, setLocal, getPreferences, setPreferences
 } from './lib/storage.js';
 import {
   listAdAccounts, validateToken, getAccountInsights, combineInsights,
@@ -59,12 +59,6 @@ async function init() {
   await loadAccounts({ fromCacheFirst: true });
   await loadInsights();
 
-  // Authorizing closed the popup mid-flow; pick it back up at the paste step
-  const [pending, auth] = await Promise.all([
-    getLocal(STORAGE_KEYS.PENDING_CONNECT),
-    getAuth()
-  ]);
-  if (pending && !auth) showConnectCard();
 }
 
 /* ---------- Theme ---------- */
@@ -922,7 +916,6 @@ function showOAuthCard(notice = '') {
     btn.disabled = true;
     try {
       const url = await beginAuthorization();
-      await setLocal(STORAGE_KEYS.PENDING_CONNECT, true);
       chrome.tabs.create({ url });
     } catch (e) {
       showConnectCard(e.message || 'Could not start the authorization.');
@@ -939,7 +932,6 @@ function showOAuthCard(notice = '') {
     btn.textContent = 'Connecting…';
     try {
       await exchangeCode(value);
-      await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
       runAnalysis();
     } catch (e) {
       // A blocked exchange is not worth retrying: route back to the key path
@@ -955,35 +947,40 @@ function showOAuthCard(notice = '') {
 }
 
 // Primary path: an Anthropic API key. This is what works today.
-function showConnectCard(notice = '') {
+// Collapsed by default; expands when the user asks for an analysis.
+function showConnectCard(notice = '', expanded = true) {
   const panel = $('#ai-panel');
   panel.hidden = false;
   panel.className = 'ai-panel';
   panel.innerHTML = `
-    <div class="ai-connect">
-      <span class="connect-title">Connect Claude</span>
-      ${typeof notice === 'string' && notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
-      <ol class="connect-steps">
-        <li>
-          <span>Create an API key in the Anthropic console and copy it.</span>
-          <button type="button" class="btn btn-mini" id="open-console">Open console ↗</button>
-        </li>
-        <li>
-          <span>Paste it back here.</span>
-          <div class="connect-row">
-            <input type="password" class="input" id="key-input" placeholder="sk-ant-..."
-                   autocomplete="off" spellcheck="false" />
-            <button type="button" class="btn btn-primary" id="key-btn">Connect</button>
-          </div>
-        </li>
-      </ol>
-      <span class="muted">Stored locally in this browser and sent only to Anthropic. Billed to your own account.</span>
-      <button type="button" class="linklike" id="try-oauth">Authorize with a Claude account instead</button>
-    </div>
+    <details class="connect-box" ${expanded ? 'open' : ''}>
+      <summary>
+        <span class="connect-title">Connect Claude</span>
+        <span class="summary-note">${notice ? 'action needed' : 'not connected'}</span>
+      </summary>
+      <div class="ai-connect">
+        ${typeof notice === 'string' && notice ? `<span class="error">${escapeHtml(notice)}</span>` : ''}
+        <ol class="connect-steps">
+          <li>
+            <span>Create an API key in the Anthropic console and copy it.</span>
+            <button type="button" class="btn btn-mini" id="open-console">Open console ↗</button>
+          </li>
+          <li>
+            <span>Paste it back here.</span>
+            <div class="connect-row">
+              <input type="password" class="input" id="key-input" placeholder="sk-ant-..."
+                     autocomplete="off" spellcheck="false" />
+              <button type="button" class="btn btn-primary" id="key-btn">Connect</button>
+            </div>
+          </li>
+        </ol>
+        <span class="muted">Stored locally in this browser and sent only to Anthropic. Billed to your own account.</span>
+        <button type="button" class="linklike" id="try-oauth">Authorize with a Claude account instead</button>
+      </div>
+    </details>
   `;
 
-  panel.querySelector('#open-console').addEventListener('click', async () => {
-    await setLocal(STORAGE_KEYS.PENDING_CONNECT, true);
+  panel.querySelector('#open-console').addEventListener('click', () => {
     chrome.tabs.create({ url: 'https://console.anthropic.com/settings/keys' });
   });
 
@@ -992,14 +989,13 @@ function showConnectCard(notice = '') {
     const value = input.value.trim();
     if (!value) return;
     await saveApiKey(value);
-    await removeLocal(STORAGE_KEYS.PENDING_CONNECT);
     runAnalysis();
   };
 
   panel.querySelector('#key-btn').addEventListener('click', connect);
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
   panel.querySelector('#try-oauth').addEventListener('click', () => showOAuthCard());
-  input.focus();
+  if (expanded) input.focus();
 }
 
 // Minimal markdown: headings, bold and bullets. Escapes first, so model
