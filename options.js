@@ -2,7 +2,8 @@
 // Everything saves automatically, with no save button.
 
 import {
-  getPreferences, setPreferences, DEFAULT_PREFERENCES, clearCredentials
+  getPreferences, setPreferences, DEFAULT_PREFERENCES, clearCredentials,
+  getLocal, STORAGE_KEYS
 } from './lib/storage.js';
 import { KPI_DEFINITIONS, DATE_PRESETS, debounce } from './lib/utils.js';
 
@@ -16,9 +17,32 @@ async function init() {
   prefs = await getPreferences();
   applyTheme();
   populateDefaultPreset();
+  await populateBookingEvents();
   renderKpiList();
   fillControls();
   bindForm();
+}
+
+// Offers the action_types this account actually reports, captured on the last
+// insights call, so the booking event never has to be guessed.
+async function populateBookingEvents() {
+  const select = $('#booking-event');
+  const seen = (await getLocal(STORAGE_KEYS.AVAILABLE_ACTIONS)) || [];
+  const current = prefs.bookingActionType || 'schedule';
+  const options = Array.from(new Set([current, 'schedule', ...seen])).sort();
+
+  select.innerHTML = '';
+  for (const key of options) {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = key;
+    select.appendChild(opt);
+  }
+  select.value = current;
+
+  if (!seen.length) {
+    $('#booking-hint').textContent = 'Open the popup once to load this account’s events.';
+  }
 }
 
 // Aplica o tema selecionado (dark é o padrão do CSS; .light inverte)
@@ -151,6 +175,7 @@ function bindForm() {
     save();
   });
 
+  $('#booking-event').addEventListener('change', save);
   $('#currency-select').addEventListener('change', save);
   $('#default-preset').addEventListener('change', save);
   $('#auto-refresh').addEventListener('input', debounce(save, 500));
@@ -174,6 +199,7 @@ async function save() {
     kpiOrder,
     kpiEnabled,
     preferredCurrency: $('#currency-select').value,
+    bookingActionType: $('#booking-event').value || 'schedule',
     theme: prefs.theme || 'auto',
     defaultDatePreset: $('#default-preset').value,
     autoRefreshMinutes: clampInt($('#auto-refresh').value, 0, 120)
@@ -206,6 +232,7 @@ async function resetDefaults() {
   if (!confirm('Restore all default settings?')) return;
   prefs = { ...DEFAULT_PREFERENCES };
   await setPreferences(prefs);
+  await populateBookingEvents();
   renderKpiList();
   fillControls();
   applyTheme();

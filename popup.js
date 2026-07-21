@@ -623,8 +623,15 @@ function escapeHtml(s) {
 // React to preference changes made in the options page
 chrome.storage.onChanged.addListener(async (changes, area) => {
   if (area === 'sync' && changes[STORAGE_KEYS.PREFERENCES]) {
+    const previousBooking = state.preferences?.bookingActionType;
     state.preferences = await getPreferences();
     refreshTheme();
+
+    // Bookings are computed while fetching, so changing the event needs a refetch
+    if (state.preferences.bookingActionType !== previousBooking) {
+      loadInsights();
+      return;
+    }
     if (state.insights) {
       renderKpis();
       renderCampaigns();
