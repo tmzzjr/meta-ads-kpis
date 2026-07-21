@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Meta Ads KPIs Dashboard",
+  "version": "1.0.0",
+  "description": "Configurable Facebook/Meta Ads campaign KPIs in a compact popup.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Meta Ads KPIs",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "options_page": "options.html",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://graph.facebook.com/*"
+  ]
+}

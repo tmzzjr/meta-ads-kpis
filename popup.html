@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=440" />
+  <title>Meta Ads KPIs</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <!-- Login view: shown when no token is stored yet -->
+  <section id="view-login" class="view" hidden>
+    <header class="header">
+      <div class="header-row">
+        <span class="brand-mark">M</span>
+        <h1>Meta Ads KPIs</h1>
+      </div>
+    </header>
+    <div class="content">
+      <p class="muted">
+        Paste your Meta Marketing API access token to get started.
+      </p>
+      <label class="field">
+        <span>Access token</span>
+        <input type="password" id="token-input" autocomplete="off" spellcheck="false"
+               placeholder="EAAB..." />
+      </label>
+      <button id="login-btn" class="btn btn-primary btn-block">Sign in</button>
+      <p id="login-error" class="error" hidden></p>
+      <details class="help">
+        <summary>How do I get a token?</summary>
+        <ol>
+          <li>Open the <a href="https://developers.facebook.com/tools/explorer/" target="_blank" rel="noopener">Graph API Explorer</a>.</li>
+          <li>Pick a Marketing app and generate a user token.</li>
+          <li>Grant the <code>ads_read</code> and <code>read_insights</code> permissions.</li>
+          <li>For longer sessions, exchange it for a <a href="https://developers.facebook.com/docs/facebook-login/guides/access-tokens/get-long-lived" target="_blank" rel="noopener">long-lived token</a>.</li>
+        </ol>
+      </details>
+    </div>
+  </section>
+
+  <!-- Main view: shown once authenticated -->
+  <section id="view-main" class="view" hidden>
+    <header class="header">
+      <div class="header-row">
+        <span class="brand-mark">M</span>
+        <h1>Meta Ads KPIs</h1>
+        <div class="header-actions">
+          <button id="refresh-btn" class="icon-btn" title="Refresh">↻</button>
+          <button id="options-btn" class="icon-btn" title="Settings">⚙</button>
+        </div>
+      </div>
+
+      <div class="header-row">
+        <div class="select-wrap">
+          <select id="account-select" class="select"></select>
+        </div>
+        <button id="reload-accounts-btn" class="icon-btn" title="Reload accounts">↺</button>
+      </div>
+
+      <!-- Date presets: clicking applies immediately -->
+      <div id="preset-chips" class="chips" role="tablist" aria-label="Date range"></div>
+
+      <!-- Custom range: single calendar picks both start and end -->
+      <div id="custom-range" class="range-wrap" hidden>
+        <button id="range-trigger" class="range-trigger" type="button" aria-haspopup="dialog">
+          <span class="cal-glyph" aria-hidden="true">🗓</span>
+          <span id="range-label">Pick a date range</span>
+          <span class="caret" aria-hidden="true"></span>
+        </button>
+
+        <div id="calendar" class="calendar" role="dialog" aria-label="Select date range" hidden>
+          <div class="cal-head">
+            <button id="cal-prev" class="cal-nav" type="button" title="Previous month">‹</button>
+            <span id="cal-title" class="cal-title"></span>
+            <button id="cal-next" class="cal-nav" type="button" title="Next month">›</button>
+          </div>
+          <div class="cal-dow">
+            <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+          </div>
+          <div id="cal-grid" class="cal-grid"></div>
+          <div class="cal-foot">
+            <span id="cal-hint" class="muted"></span>
+            <button id="cal-reset" class="btn btn-mini" type="button">Reset</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- Status: errors and empty states -->
+      <div id="status" class="status" hidden></div>
+
+      <!-- KPI grid -->
+      <div id="kpi-grid" class="kpi-grid"></div>
+
+      <div class="section-head">
+        <h2 class="section-title">Campaigns</h2>
+        <span id="campaign-count" class="pill pill-muted" hidden></span>
+      </div>
+      <div id="campaigns" class="campaigns"></div>
+    </div>
+
+    <footer class="footer">
+      <span id="footer-meta" class="muted"></span>
+    </footer>
+  </section>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Settings · Meta Ads KPIs</title>
+  <link rel="stylesheet" href="popup.css" />
+  <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+  <main class="options">
+    <header class="options-header">
+      <div class="options-brand">
+        <span class="brand-mark">M</span>
+        <div>
+          <h1>Settings</h1>
+          <p class="muted">Changes are saved automatically.</p>
+        </div>
+        <span id="save-status" class="pill" hidden></span>
+      </div>
+    </header>
+
+    <section class="options-section">
+      <div class="section-head">
+        <h2 class="section-title">Visible KPIs and order</h2>
+      </div>
+      <p class="muted">Drag the ⋮⋮ handle to reorder. Use the switch to show or hide.</p>
+      <ul id="kpi-list" class="kpi-list"></ul>
+    </section>
+
+    <section class="options-section">
+      <div class="section-head">
+        <h2 class="section-title">Display</h2>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">
+          <span>Theme</span>
+          <span class="muted">Auto follows your system.</span>
+        </div>
+        <div id="theme-seg" class="segmented" role="radiogroup" aria-label="Theme">
+          <button type="button" class="seg" data-theme="auto" role="radio">Auto</button>
+          <button type="button" class="seg" data-theme="light" role="radio">Light</button>
+          <button type="button" class="seg" data-theme="dark" role="radio">Dark</button>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">
+          <span>Preferred currency</span>
+          <span class="muted">Empty uses the account currency.</span>
+        </div>
+        <div class="select-wrap setting-control">
+          <select id="currency-select" class="select">
+            <option value="">Account currency</option>
+            <option value="USD">USD</option>
+            <option value="BRL">BRL</option>
+            <option value="EUR">EUR</option>
+            <option value="GBP">GBP</option>
+            <option value="ARS">ARS</option>
+            <option value="MXN">MXN</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">
+          <span>Default date range</span>
+          <span class="muted">Used when the popup opens.</span>
+        </div>
+        <div class="select-wrap setting-control">
+          <select id="default-preset" class="select"></select>
+        </div>
+      </div>
+
+      <div class="setting">
+        <div class="setting-label">
+          <span>Auto refresh</span>
+          <span class="muted">In minutes. 0 turns it off.</span>
+        </div>
+        <input type="number" id="auto-refresh" class="input setting-control" min="0" max="120" step="1" />
+      </div>
+    </section>
+
+    <section class="options-section">
+      <div class="section-head">
+        <h2 class="section-title">Account and data</h2>
+      </div>
+      <div class="setting">
+        <div class="setting-label">
+          <span>Restore defaults</span>
+          <span class="muted">Resets KPIs, theme and date range.</span>
+        </div>
+        <button id="reset-btn" class="btn setting-control-auto">Restore</button>
+      </div>
+      <div class="setting">
+        <div class="setting-label">
+          <span>Remove token</span>
+          <span class="muted">Clears the stored token and account cache.</span>
+        </div>
+        <button id="logout-btn" class="btn btn-danger setting-control-auto">Sign out</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="options.js"></script>
+</body>
+</html>
