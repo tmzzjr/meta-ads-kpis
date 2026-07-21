@@ -538,14 +538,52 @@ async function loadInsights() {
 // recomputes cost per result from it. Leaves the figure untouched on failure.
 async function applyCampaignResults(insights, targets, range) {
   try {
-    const totals = await Promise.all(targets.map(a => getResultsTotal(a.id, range)));
-    const bookings = totals.reduce((sum, n) => sum + (Number(n) || 0), 0);
+    const results = await Promise.all(targets.map(a => getResultsTotal(a.id, range)));
+
+    const bookings = results.reduce((sum, r) => sum + r.total, 0);
+    const kinds = {};
+    for (const r of results) {
+      for (const [kind, n] of Object.entries(r.kinds)) kinds[kind] = (kinds[kind] || 0) + n;
+    }
 
     insights.bookings = bookings;
     insights.cost_per_booking = bookings > 0 ? insights.spend / bookings : 0;
+    insights.result_kind = dominantKind(kinds, bookings);
   } catch {
     /* keep the account-level figure */
   }
+}
+
+// Name the card after the conversion when one kind clearly dominates. With a
+// genuine mix of objectives, "Results" is the honest label.
+function dominantKind(kinds, total) {
+  if (!total) return 'result';
+  const [top] = Object.entries(kinds).sort((a, b) => b[1] - a[1]);
+  if (!top) return 'result';
+  return top[1] / total >= 0.8 ? top[0] : 'result';
+}
+
+// Plural label for the count card, and the matching cost-per label
+const RESULT_LABELS = {
+  schedule:     ['Bookings',      'Cost per Booking'],
+  lead:         ['Leads',         'Cost per Lead'],
+  purchase:     ['Purchases',     'Cost per Purchase'],
+  registration: ['Registrations', 'Cost per Registration'],
+  application:  ['Applications',  'Cost per Application'],
+  trial:        ['Trials',        'Cost per Trial'],
+  subscription: ['Subscriptions', 'Cost per Subscription'],
+  contact:      ['Contacts',      'Cost per Contact'],
+  add_to_cart:  ['Adds to Cart',  'Cost per Add to Cart'],
+  conversion:   ['Conversions',   'Cost per Conversion'],
+  result:       ['Results',       'Cost per Result']
+};
+
+// Overrides the static KPI label with the conversion actually being counted
+function kpiLabel(key, def) {
+  const pair = RESULT_LABELS[state.insights?.result_kind || 'result'] || RESULT_LABELS.result;
+  if (key === 'bookings') return pair[0];
+  if (key === 'cost_per_booking') return pair[1];
+  return def.label;
 }
 
 // One account passes straight through; several are summed
@@ -614,7 +652,7 @@ function renderKpis() {
     card.draggable = true;
     card.dataset.key = key;
     card.innerHTML = `
-      <span class="label">${escapeHtml(def.label)}</span>
+      <span class="label">${escapeHtml(kpiLabel(key, def))}</span>
       <span class="value">${formatValue(value, def.format, currency)}</span>
       <span class="trend ${dir}">
         <span class="arrow">${dir === 'up' ? '▲' : dir === 'down' ? '▼' : '●'}</span>
