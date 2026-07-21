@@ -67,9 +67,13 @@ Ads data. The simplest path is the Graph API Explorer:
 | ---------------------- | -------------------------------------------------------- |
 | `ads_read`             | List accounts (`/me/adaccounts`) and read campaigns.      |
 | `read_insights`        | Access the `/act_{id}/insights` endpoint.                 |
+| `ads_management`       | **Required** to pause/resume and to edit budgets.         |
 | `business_management`* | Needed if the account belongs to a Business Manager.      |
 
 \* Optional, depends on the account setup.
+
+Without `ads_management` the dashboard still works, but every switch and budget
+edit fails with a permissions error from Meta.
 
 ---
 
@@ -133,8 +137,16 @@ lower is better (CPC, CPM, Cost per Result, Frequency), green means a drop.
   so smaller values are rounded up.
 - **No automated tests.** The API layer is simple enough to inspect by hand, but
   testing across currencies and account timezones is recommended.
-- **Read only.** The extension is purely analytical: it never creates, pauses or
-  edits campaigns.
+- **Write actions are immediate.** Switches and budget edits hit the Meta API
+  right away, with no confirmation step and no undo. They affect live campaigns
+  and real spend. A failed change reverts the switch and shows the API error.
+- **Budgets are per level.** A campaign using campaign budget optimization holds
+  the budget at the campaign level and its ad sets show none, and vice versa.
+  The extension only offers editing where a budget actually exists.
+- **Aggregate view across currencies.** "All accounts" sums every account. When
+  they do not share a currency the money totals mix units, and the popup warns
+  about it. Reach is summed too, so people reached by several accounts are
+  counted more than once, which also affects frequency.
 
 ---
 
