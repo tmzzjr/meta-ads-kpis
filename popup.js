@@ -5,7 +5,8 @@ import {
 } from './lib/storage.js';
 import {
   listAdAccounts, validateToken, getAccountInsights, combineInsights,
-  getCampaigns, getAdSets, getAds, setEntityStatus, setEntityBudget, MetaApiError
+  getCampaigns, getAdSets, getAds, getResultsTotal,
+  setEntityStatus, setEntityBudget, MetaApiError
 } from './lib/api.js';
 import {
   KPI_DEFINITIONS, DATE_PRESETS, formatValue, percentChange,
@@ -505,6 +506,13 @@ async function loadInsights() {
     accountData.daily_spend = todayData.spend;
     prevData.daily_spend = 0; // today has no meaningful previous period here
 
+    // Results are the sum of each campaign's own result, so mixed-objective
+    // accounts total correctly instead of reporting a single detected event
+    await Promise.all([
+      applyCampaignResults(accountData, targets, range),
+      applyCampaignResults(prevData, targets, prev)
+    ]);
+
     state.insights = accountData;
     state.previous = prevData;
     state.campaigns = campaigns;
@@ -523,6 +531,20 @@ async function loadInsights() {
     showStatus('error', friendlyError(e));
   } finally {
     $('#refresh-btn').classList.remove('spinning');
+  }
+}
+
+// Replaces the account-level result count with the sum across campaigns, then
+// recomputes cost per result from it. Leaves the figure untouched on failure.
+async function applyCampaignResults(insights, targets, range) {
+  try {
+    const totals = await Promise.all(targets.map(a => getResultsTotal(a.id, range)));
+    const bookings = totals.reduce((sum, n) => sum + (Number(n) || 0), 0);
+
+    insights.bookings = bookings;
+    insights.cost_per_booking = bookings > 0 ? insights.spend / bookings : 0;
+  } catch {
+    /* keep the account-level figure */
   }
 }
 
