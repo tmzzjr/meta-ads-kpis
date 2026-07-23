@@ -13,6 +13,7 @@ import {
   previousRange, trendDirection, toIsoDate
 } from './lib/utils.js';
 import { analyzeAccount, AiError } from './lib/ai.js';
+import { gatherDeepDataset, requestDeepAnalysis, applyFinding, DeepAnalysisError } from './lib/deep-analysis.js';
 import { beginAuthorization, exchangeCode, saveApiKey, getAuth } from './lib/oauth.js';
 
 // In-memory popup state (not persisted between popup openings)
@@ -894,6 +895,11 @@ function metricCell(label, value, dim = false) {
 async function runAnalysis() {
   if (!state.insights) return;
 
+  // With a traffic-manager server configured, run the deep analysis (down to
+  // ads and creatives) there. Otherwise fall back to the in-browser read.
+  const server = (state.preferences.analystServer || '').trim();
+  if (server) return runDeepAnalysis(server);
+
   // Not connected yet: authorize inline instead of sending the user to Settings
   if (!(await getAuth())) return showConnectCard();
 
@@ -938,6 +944,122 @@ async function runAnalysis() {
   } finally {
     btn.disabled = false;
     label.textContent = 'Analyze campaigns';
+  }
+}
+
+/* ---------- Deep analysis (local traffic-manager server) ---------- */
+
+async function runDeepAnalysis(server) {
+  const panel = $('#ai-panel');
+  const btn = $('#analyze-btn');
+  const label = btn.querySelector('.label');
+  panel.hidden = false;
+  panel.className = 'ai-panel thinking';
+  panel.innerHTML = '<span class="spinner"></span>Gathering campaigns, ad sets and creatives…';
+  btn.disabled = true;
+  label.textContent = 'Analyzing…';
+
+  try {
+    const currency = state.preferences.preferredCurrency || state.account.currency || 'USD';
+    const dataset = await gatherDeepDataset(
+      { account: state.account, range: state.range, currency, totals: state.insights, campaigns: state.campaigns },
+      (done, total) => {
+        panel.innerHTML = `<span class="spinner"></span>Reading campaigns… ${done}/${total}`;
+      }
+    );
+
+    panel.innerHTML = '<span class="spinner"></span>The traffic manager is analyzing…';
+    const language = state.preferences.insightsLanguage === 'pt-BR' ? 'pt-BR' : 'en';
+    const report = await requestDeepAnalysis(server, dataset, language);
+
+    renderFindings(report, currency);
+  } catch (e) {
+    panel.className = 'ai-panel error';
+    if (e instanceof DeepAnalysisError && e.code === 'offline') {
+      panel.innerHTML = `${escapeHtml(e.message)}<div class="ai-foot">Start it with <code>node server.js</code> in the Meta Ads Analyst Server folder, or clear the server URL in ⚙ Settings to use the in-browser read.</div>`;
+    } else {
+      panel.textContent = e.message || String(e);
+    }
+  } finally {
+    btn.disabled = false;
+    label.textContent = 'Analyze campaigns';
+  }
+}
+
+const SEVERITY_LABEL = {
+  critical: 'Critical', warning: 'Warning', opportunity: 'Opportunity', ok: 'Healthy'
+};
+
+function renderFindings(report, currency) {
+  const panel = $('#ai-panel');
+  panel.className = 'ai-panel findings';
+
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const head = report.headline
+    ? `<div class="findings-headline">${escapeHtml(report.headline)}</div>`
+    : '';
+
+  if (!findings.length) {
+    panel.innerHTML = head + '<div class="ai-foot">No findings returned.</div>';
+    return;
+  }
+
+  const cards = findings.map((f, i) => {
+    const sev = SEVERITY_LABEL[f.severity] ? f.severity : 'warning';
+    const stake = f.money_at_stake && f.money_at_stake !== '—'
+      ? `<span class="finding-stake">${escapeHtml(f.money_at_stake)}</span>` : '';
+    const where = f.entity?.name
+      ? `<span class="finding-where">${escapeHtml(prettyEnum(f.entity.level))} · ${escapeHtml(f.entity.name)}</span>`
+      : '';
+
+    const canApply = ['pause', 'reduce_budget', 'scale_budget'].includes(f.action?.type) && f.action?.target_id;
+    const applyBtn = canApply
+      ? `<button class="btn btn-mini finding-apply" data-idx="${i}">${escapeHtml(f.action.label || 'Apply')}</button>`
+      : (f.action?.type === 'creative'
+          ? `<span class="finding-hint">${escapeHtml(f.action.label || 'Needs a new creative')}</span>`
+          : '');
+
+    return `
+      <div class="finding sev-${sev}" data-idx="${i}">
+        <div class="finding-top">
+          <span class="finding-sev">${SEVERITY_LABEL[sev]}</span>
+          ${stake}
+        </div>
+        <div class="finding-title">${escapeHtml(f.title || '')}</div>
+        <div class="finding-detail">${escapeHtml(f.detail || '')}</div>
+        <div class="finding-foot">
+          ${where}
+          <span class="finding-action">${applyBtn}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  panel.innerHTML = head + `<div class="findings-list">${cards}</div>`
+    + `<div class="ai-foot">Claude Opus 4.8 · traffic-manager agent · ${state.range.since} to ${state.range.until}</div>`;
+
+  // Wire the apply buttons. Each confirms before touching the live account.
+  panel.querySelectorAll('.finding-apply').forEach((btn) => {
+    btn.addEventListener('click', () => onApplyFinding(btn, findings[Number(btn.dataset.idx)]));
+  });
+}
+
+async function onApplyFinding(btn, finding) {
+  const action = finding.action;
+  const summary = action.type === 'pause'
+    ? `Pause "${finding.entity.name}"?`
+    : `Change budget of "${finding.entity.name}" to ${formatValue(action.new_budget_major, 'currency', state.account.currency || 'USD')}${action.budget_field === 'daily_budget' ? '/day' : ''}?`;
+  if (!confirm(summary)) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Applying…';
+  try {
+    const done = await applyFinding(action);
+    btn.textContent = `✓ ${done}`;
+    btn.classList.add('done');
+  } catch (e) {
+    btn.disabled = false;
+    btn.textContent = 'Retry';
+    btn.title = e.message || String(e);
   }
 }
 

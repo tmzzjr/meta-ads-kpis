@@ -103,6 +103,7 @@ function fillControls() {
   $('#currency-select').value = prefs.preferredCurrency || '';
   $('#default-preset').value = prefs.defaultDatePreset || 'last_7d';
   $('#auto-refresh').value = prefs.autoRefreshMinutes ?? 0;
+  $('#analyst-server').value = prefs.analystServer ?? 'http://localhost:8787';
   for (const seg of $('#theme-seg').querySelectorAll('.seg')) {
     const active = seg.dataset.theme === (prefs.theme || 'auto');
     seg.classList.toggle('active', active);
@@ -214,6 +215,7 @@ function bindForm() {
   $('#currency-select').addEventListener('change', save);
   $('#default-preset').addEventListener('change', save);
   $('#auto-refresh').addEventListener('input', debounce(save, 500));
+  $('#analyst-server').addEventListener('input', debounce(save, 500));
 
   $('#reset-btn').addEventListener('click', resetDefaults);
   $('#logout-btn').addEventListener('click', logout);
@@ -238,7 +240,8 @@ async function save() {
     insightsLanguage: prefs.insightsLanguage || 'en',
     theme: prefs.theme || 'auto',
     defaultDatePreset: $('#default-preset').value,
-    autoRefreshMinutes: clampInt($('#auto-refresh').value, 0, 120)
+    autoRefreshMinutes: clampInt($('#auto-refresh').value, 0, 120),
+    analystServer: $('#analyst-server').value.trim()
   };
 
   try {

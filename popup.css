@@ -964,3 +964,56 @@ h2.section-title {
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Deep-analysis findings (traffic-manager agent) ---------- */
+
+.ai-panel.findings { display: flex; flex-direction: column; gap: 10px; }
+
+.findings-headline {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.4;
+  letter-spacing: -.01em;
+}
+
+.findings-list { display: flex; flex-direction: column; gap: 8px; }
+
+.finding {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-card);
+  padding: 10px 12px;
+}
+.finding.sev-critical    { border-left-color: var(--bad); }
+.finding.sev-warning     { border-left-color: var(--warn); }
+.finding.sev-opportunity { border-left-color: var(--accent); }
+.finding.sev-ok          { border-left-color: var(--good); }
+
+.finding-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 5px; }
+
+.finding-sev {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 7px; border-radius: 5px;
+  color: var(--text-dim); background: var(--bg-hover);
+}
+.sev-critical .finding-sev    { color: var(--bad);    background: var(--bad-soft); }
+.sev-warning .finding-sev     { color: var(--warn);   background: var(--warn-soft); }
+.sev-opportunity .finding-sev { color: var(--accent); background: var(--accent-soft); }
+.sev-ok .finding-sev          { color: var(--good);   background: var(--good-soft); }
+
+.finding-stake { font-size: 11.5px; font-weight: 600; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+.finding-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.35; margin-bottom: 3px; }
+.finding-detail { font-size: 12.5px; color: var(--text-dim); line-height: 1.45; }
+
+.finding-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-top: 8px;
+}
+.finding-where { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finding-hint { font-size: 11px; color: var(--text-muted); font-style: italic; }
+
+.finding-apply { flex: none; }
+.finding-apply.done { color: var(--good); border-color: var(--good); background: var(--good-soft); cursor: default; }

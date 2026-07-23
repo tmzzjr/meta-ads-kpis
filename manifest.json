@@ -29,6 +29,8 @@
   "host_permissions": [
     "https://graph.facebook.com/*",
     "https://api.anthropic.com/*",
-    "https://console.anthropic.com/*"
+    "https://console.anthropic.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
   ]
 }
